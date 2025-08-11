@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>HyperEVM Real-Time Trading - TOKEN/WHYPE</title>
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+    <style>
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #000;
+            color: #fff;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 375px;
+            margin: 0 auto;
+            min-height: 100vh;
+            background: #000;
+            padding-top: 90px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            max-width: 375px;
+            margin: 0 auto;
+            background: #000;
+            z-index: 90;
+            border-bottom: 1px solid #222;
+        }
+        
+        .token-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .token-pair {
+            font-size: 20px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+        
+        .dropdown-arrow {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .price-change {
+            color: #00ff88;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .wallet-connect {
+            background: #00ff88;
+            color: #000;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .trading-section {
+            padding: 16px;
+            flex: 1;
+        }
+        
+        .long-short-buttons {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        
+        .long-btn, .short-btn {
+            flex: 1;
+            padding: 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .long-btn {
+            background: #00ff88;
+            color: #000;
+        }
+        
+        .short-btn {
+            background: #ff4757;
+            color: #fff;
+        }
+        
+        .order-book {
+            background: #111;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .order-book-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .order-book-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+        }
+        
+        .order-book-percentage {
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+        }
+        
+        .chart-container {
+            background: #111;
+            border-radius: 8px;
+            height: 300px;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .chart-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            max-width: 375px;
+            margin: 0 auto;
+            background: #000;
+            border-top: 1px solid #222;
+            display: flex;
+            z-index: 90;
+        }
+        
+        .nav-item {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            cursor: pointer;
+            border: none;
+            background: none;
+        }
+        
+        .nav-item.active {
+            color: #00ff88;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            padding: 20px;
+        }
+        
+        .token-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 8px;
+            margin-top: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+        }
+        
+        .token-option {
+            padding: 12px 16px;
+            border-bottom: 1px solid #222;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .token-option:hover {
+            background: #222;
+        }
+        
+        .token-option:last-child {
+            border-bottom: none;
+        }
+        
+        .token-symbol {
+            font-weight: 600;
+        }
+        
+        .token-price {
+            color: #00ff88;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="token-info">
+                <div class="token-pair" onclick="toggleTokenDropdown()">
+                    <span id="current-token">BUDDY/WHYPE</span>
+                    <span class="dropdown-arrow">▼</span>
+                </div>
+                <div class="price-change" id="price-display">Loading...</div>
+                
+                <!-- Token Dropdown -->
+                <div class="token-dropdown" id="token-dropdown">
+                    <div class="loading">Loading tokens...</div>
+                </div>
+            </div>
+            <button class="wallet-connect" id="wallet-connect" onclick="connectWallet()">
+                Connect Wallet
+            </button>
+        </div>
+
+        <!-- Trading Section -->
+        <div class="trading-section">
+            <!-- Long/Short Buttons -->
+            <div class="long-short-buttons">
+                <button class="long-btn" onclick="openPosition('long')">
+                    LONG
+                </button>
+                <button class="short-btn" onclick="openPosition('short')">
+                    SHORT
+                </button>
+            </div>
+
+            <!-- Order Book -->
+            <div class="order-book">
+                <div class="order-book-header">
+                    <span class="order-book-title">Order Book</span>
+                    <span class="order-book-percentage" id="order-book-percentage">Loading...</span>
+                </div>
+                <div id="order-book-content">
+                    <div class="loading">Loading order book...</div>
+                </div>
+            </div>
+
+            <!-- Chart -->
+            <div class="chart-container">
+                <div class="chart-placeholder">
+                    📈 Live Chart - <span id="chart-token">BUDDY</span>/WHYPE
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <div class="bottom-nav">
+            <button class="nav-item active" onclick="showPage('trading')">Trading</button>
+            <button class="nav-item" onclick="showPage('positions')">Positions</button>
+            <button class="nav-item" onclick="showPage('assets')">Assets</button>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentToken = 'BUDDY';
+        let tokens = [];
+        let socket = null;
+        let wallet = null;
+
+        // Initialize the app
+        async function initApp() {
+            console.log('🚀 Initializing HyperEVM Trading Platform...');
+            
+            // Initialize Socket.IO connection
+            initSocketConnection();
+            
+            // Load token data
+            await loadTokens();
+            
+            // Initialize wallet connection check
+            checkWalletConnection();
+            
+            console.log('✅ App initialized successfully');
+        }
+
+        // Initialize Socket.IO connection
+        function initSocketConnection() {
+            socket = io();
+            
+            socket.on('connect', () => {
+                console.log('🔗 Connected to trading server');
+            });
+            
+            socket.on('priceUpdate', (data) => {
+                updateTokenPrices(data);
+            });
+            
+            socket.on('orderBookUpdate', (data) => {
+                updateOrderBook(data);
+            });
+            
+            socket.on('disconnect', () => {
+                console.log('❌ Disconnected from trading server');
+            });
+        }
+
+        // Load available tokens
+        async function loadTokens() {
+            try {
+                const response = await fetch('/api/tokens');
+                tokens = await response.json();
+                console.log('📊 Loaded tokens:', tokens.length);
+                
+                populateTokenDropdown();
+                updateCurrentTokenDisplay();
+            } catch (error) {
+                console.error('❌ Error loading tokens:', error);
+            }
+        }
+
+        // Populate token dropdown
+        function populateTokenDropdown() {
+            const dropdown = document.getElementById('token-dropdown');
+            dropdown.innerHTML = '';
+            
+            tokens.forEach(token => {
+                const option = document.createElement('div');
+                option.className = 'token-option';
+                option.onclick = () => selectToken(token.symbol);
+                
+                option.innerHTML = `
+                    <span class="token-symbol">${token.symbol}/WHYPE</span>
+                    <span class="token-price">$${token.price}</span>
+                `;
+                
+                dropdown.appendChild(option);
+            });
+        }
+
+        // Toggle token dropdown
+        function toggleTokenDropdown() {
+            const dropdown = document.getElementById('token-dropdown');
+            dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+        }
+
+        // Select a token
+        function selectToken(symbol) {
+            currentToken = symbol;
+            updateCurrentTokenDisplay();
+            toggleTokenDropdown();
+            loadOrderBook();
+        }
+
+        // Update current token display
+        function updateCurrentTokenDisplay() {
+            const token = tokens.find(t => t.symbol === currentToken);
+            if (token) {
+                document.getElementById('current-token').textContent = `${token.symbol}/WHYPE`;
+                document.getElementById('price-display').textContent = `$${token.price} (+${token.change24h}%)`;
+                document.getElementById('chart-token').textContent = token.symbol;
+            }
+        }
+
+        // Connect wallet
+        async function connectWallet() {
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    wallet = accounts[0];
+                    
+                    document.getElementById('wallet-connect').textContent = 
+                        `${wallet.slice(0, 6)}...${wallet.slice(-4)}`;
+                    
+                    console.log('✅ Wallet connected:', wallet);
+                } catch (error) {
+                    console.error('❌ Error connecting wallet:', error);
+                    alert('Failed to connect wallet');
+                }
+            } else {
+                alert('MetaMask not found. Please install MetaMask to use this platform.');
+            }
+        }
+
+        // Check wallet connection
+        async function checkWalletConnection() {
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                    if (accounts.length > 0) {
+                        wallet = accounts[0];
+                        document.getElementById('wallet-connect').textContent = 
+                            `${wallet.slice(0, 6)}...${wallet.slice(-4)}`;
+                    }
+                } catch (error) {
+                    console.error('❌ Error checking wallet:', error);
+                }
+            }
+        }
+
+        // Open position (Long/Short)
+        async function openPosition(type) {
+            if (!wallet) {
+                await connectWallet();
+                if (!wallet) return;
+            }
+            
+            const token = tokens.find(t => t.symbol === currentToken);
+            if (!token) {
+                alert('Please select a token first');
+                return;
+            }
+            
+            const amount = prompt(`Enter amount to ${type.toUpperCase()} ${currentToken}:`);
+            if (!amount || isNaN(amount)) return;
+            
+            try {
+                console.log(`🚀 Opening ${type} position for ${currentToken}...`);
+                
+                // Simulate position opening
+                const position = {
+                    id: Date.now(),
+                    token: currentToken,
+                    type: type,
+                    amount: parseFloat(amount),
+                    price: token.price,
+                    timestamp: new Date()
+                };
+                
+                alert(`${type.toUpperCase()} position opened successfully!\n\nToken: ${currentToken}\nAmount: ${amount}\nPrice: $${token.price}`);
+                
+                console.log('✅ Position opened:', position);
+            } catch (error) {
+                console.error('❌ Error opening position:', error);
+                alert('Failed to open position');
+            }
+        }
+
+        // Load order book
+        async function loadOrderBook() {
+            try {
+                const response = await fetch(`/api/orderbook/${currentToken}`);
+                const orderBook = await response.json();
+                updateOrderBookDisplay(orderBook);
+            } catch (error) {
+                console.error('❌ Error loading order book:', error);
+            }
+        }
+
+        // Update order book display
+        function updateOrderBookDisplay(orderBook) {
+            const content = document.getElementById('order-book-content');
+            const percentage = document.getElementById('order-book-percentage');
+            
+            if (orderBook && orderBook.bids && orderBook.asks) {
+                const buyPercentage = Math.round((orderBook.bids.length / (orderBook.bids.length + orderBook.asks.length)) * 100);
+                const sellPercentage = 100 - buyPercentage;
+                
+                percentage.textContent = `B ${buyPercentage}% | ${sellPercentage}% S`;
+                
+                content.innerHTML = `
+                    <div style="color: #00ff88; font-size: 12px; margin-bottom: 8px;">BUY ORDERS</div>
+                    ${orderBook.bids.slice(0, 5).map(bid => 
+                        `<div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px;">
+                            <span>$${bid.price}</span>
+                            <span>${bid.amount}</span>
+                        </div>`
+                    ).join('')}
+                    <div style="color: #ff4757; font-size: 12px; margin: 12px 0 8px 0;">SELL ORDERS</div>
+                    ${orderBook.asks.slice(0, 5).map(ask => 
+                        `<div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px;">
+                            <span>$${ask.price}</span>
+                            <span>${ask.amount}</span>
+                        </div>`
+                    ).join('')}
+                `;
+            }
+        }
+
+        // Show different pages
+        function showPage(page) {
+            // Update navigation
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Simple page switching
+            switch (page) {
+                case 'trading':
+                    console.log('📊 Showing trading page');
+                    break;
+                case 'positions':
+                    alert('Positions page - Coming soon!');
+                    break;
+                case 'assets':
+                    alert('Assets page - Coming soon!');
+                    break;
+            }
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (event) => {
+            const dropdown = document.getElementById('token-dropdown');
+            const tokenPair = document.querySelector('.token-pair');
+            
+            if (!dropdown.contains(event.target) && !tokenPair.contains(event.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+
+        // Initialize app when page loads
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
