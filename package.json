@@ -1,0 +1,37 @@
+{
+  "name": "hyperevm-trading-platform",
+  "version": "1.0.0",
+  "description": "HyperEVM Real-Time Trading Platform - Advanced blockchain trading with live market data",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "build": "echo 'No build step required'",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "socket.io": "^4.8.1",
+    "ethers": "^6.15.0",
+    "cors": "^2.8.5"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "keywords": [
+    "trading",
+    "blockchain",
+    "hyperevm",
+    "real-time",
+    "dex",
+    "crypto",
+    "websocket"
+  ],
+  "author": "Backpacksasa",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Backpacksasa/Backpacksasa.git"
+  },
+  "homepage": "https://github.com/Backpacksasa/Backpacksasa#readme"
+}
